@@ -1,8 +1,8 @@
 import type { Express } from "express";
-import { db } from "@db";
-import { users, devices } from "@db/schema";
+import { db } from "@db/index.js";
+import { users, devices } from "@db/schema.js";
 import { eq } from "drizzle-orm";
-import { uploadToRemarkable } from "./remarkable";
+import { uploadToRemarkable } from "./remarkable.js";
 import sgMail from "@sendgrid/mail";
 import puppeteer from "puppeteer";
 
@@ -123,7 +123,7 @@ async function convertHtmlToPdf(html: string): Promise<Buffer> {
       }
     });
 
-    return pdf;
+    return Buffer.from(pdf);
   } finally {
     await browser.close();
   }
