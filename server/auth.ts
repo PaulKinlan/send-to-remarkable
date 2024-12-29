@@ -30,7 +30,8 @@ const crypto = {
 
 declare global {
   namespace Express {
-    interface User extends User {}
+    // Extend the Express.User interface with our User type
+    interface User extends Omit<User, "password"> {}
   }
 }
 
@@ -68,7 +69,9 @@ export function setupAuth(app: Express) {
           return done(null, false, { message: "Invalid username or password" });
         }
 
-        return done(null, user);
+        // Omit password from the user object before passing it to done
+        const { password: _, ...userWithoutPassword } = user;
+        return done(null, userWithoutPassword);
       } catch (err) {
         return done(err);
       }
@@ -82,7 +85,13 @@ export function setupAuth(app: Express) {
   passport.deserializeUser(async (id: number, done) => {
     try {
       const [user] = await db
-        .select()
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email,
+          emailValidated: users.emailValidated,
+          createdAt: users.createdAt,
+        })
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
@@ -118,11 +127,14 @@ export function setupAuth(app: Express) {
         })
         .returning();
 
-      req.login(newUser, (err) => {
+      // Omit password from the response
+      const { password: _, ...userWithoutPassword } = newUser;
+
+      req.login(userWithoutPassword, (err) => {
         if (err) {
           return next(err);
         }
-        return res.json(newUser);
+        return res.json(userWithoutPassword);
       });
     } catch (error) {
       next(error);

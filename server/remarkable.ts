@@ -20,7 +20,7 @@ const remarkableApi = {
 
 export function setupRemarkable(app: Express) {
   app.post("/api/device/register", async (req, res) => {
-    if (!req.isAuthenticated()) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Not authenticated");
     }
 
@@ -46,6 +46,10 @@ export function setupRemarkable(app: Express) {
   });
 }
 
-export async function uploadToRemarkable(deviceToken: string, file: any) {
+export async function uploadToRemarkable(deviceToken: string, file: {
+  filename: string;
+  content: Buffer;
+  contentType: string;
+}) {
   return remarkableApi.upload(deviceToken, file);
 }
