@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { db } from "@db";
 import { devices } from "@db/schema";
 import { eq } from "drizzle-orm";
-import RemarkableAPI from "remarkable-tablet-api";
+import { register, remarkable } from "rmapi-js";
 
 export function setupRemarkable(app: Express) {
   app.post("/api/device/register", async (req, res) => {
@@ -14,11 +14,8 @@ export function setupRemarkable(app: Express) {
       const { oneTimeCode } = req.body;
       console.log(`Registering device for user ${req.user.id} with code: ${oneTimeCode}`);
 
-      // Initialize Remarkable client
-      const remarkable = new RemarkableAPI();
-
       // Register device with Remarkable
-      const deviceToken = await remarkable.register(oneTimeCode);
+      const deviceToken = await register(oneTimeCode);
       console.log(`Device registered successfully with token: ${deviceToken}`);
 
       // Save device token
@@ -45,8 +42,8 @@ export async function uploadToRemarkable(deviceToken: string, file: {
   try {
     console.log(`Uploading file ${file.filename} to Remarkable`);
 
-    const remarkable = new RemarkableAPI();
-    await remarkable.setToken(deviceToken);
+    // Create a new API instance with the device token
+    const api = await remarkable(deviceToken);
 
     // Convert the file to PDF if it's not already
     let pdfContent = file.content;
@@ -56,8 +53,8 @@ export async function uploadToRemarkable(deviceToken: string, file: {
       console.log(`File ${file.filename} is not PDF, conversion may be needed`);
     }
 
-    // Upload the document
-    await remarkable.uploadPDF(file.filename, pdfContent);
+    // Upload the document using the API instance
+    await api.uploadPDF(file.filename, pdfContent);
 
     console.log(`Successfully uploaded ${file.filename} to Remarkable`);
     return true;
