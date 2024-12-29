@@ -1,5 +1,6 @@
 import { pgTable, text, serial, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -18,12 +19,22 @@ export const devices = pgTable("devices", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertUserSchema = createInsertSchema(users);
+// Create base schemas from the tables
+const baseUserSchema = createInsertSchema(users);
+const baseDeviceSchema = createInsertSchema(devices);
+
+// Extend the base schema with additional validation
+export const insertUserSchema = baseUserSchema.extend({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
 export const selectUserSchema = createSelectSchema(users);
+export const insertDeviceSchema = baseDeviceSchema;
+export const selectDeviceSchema = createSelectSchema(devices);
+
+// Export types for TypeScript
 export type User = typeof users.$inferSelect;
 export type InsertUser = typeof users.$inferInsert;
-
-export const insertDeviceSchema = createInsertSchema(devices);
-export const selectDeviceSchema = createSelectSchema(devices);
 export type Device = typeof devices.$inferSelect;
 export type InsertDevice = typeof devices.$inferInsert;
