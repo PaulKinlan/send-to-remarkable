@@ -12,8 +12,8 @@ export default function DashboardPage() {
       <div className="max-w-4xl mx-auto space-y-8">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold">Welcome, {user?.username}</h1>
-            <p className="text-muted-foreground">Manage your reMarkable email delivery settings</p>
+            <h1 className="text-2xl font-bold">Welcome</h1>
+            <p className="text-muted-foreground">{user?.email}</p>
           </div>
           <Button variant="outline" onClick={() => logout()}>Logout</Button>
         </div>

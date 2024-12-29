@@ -5,7 +5,7 @@ import { useUser } from "../hooks/use-user";
 
 export default function EmailSettings() {
   const { user } = useUser();
-  const deliveryEmail = `${user?.id}@remarkable-email.example.com`;
+  const deliveryEmail = user ? `${user.email.split('@')[0]}.${user.id}@remarkable-email.example.com` : '';
 
   return (
     <Card>
