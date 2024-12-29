@@ -5,7 +5,7 @@ import { useUser } from "../hooks/use-user";
 
 export default function EmailSettings() {
   const { user } = useUser();
-  const deliveryEmail = `${user?.username}.${user?.id}@remarkable-email.example.com`;
+  const deliveryEmail = `${user?.id}@remarkable-email.example.com`;
 
   return (
     <Card>
@@ -26,7 +26,7 @@ export default function EmailSettings() {
             Send or forward emails to this address to deliver documents to your reMarkable
           </p>
         </div>
-        
+
         <div className="space-y-2">
           <Label>Email Validation Status</Label>
           <div className="flex items-center space-x-2">

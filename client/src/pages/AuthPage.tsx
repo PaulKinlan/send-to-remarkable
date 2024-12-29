@@ -8,23 +8,23 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "../hooks/use-user";
+import { useLocation } from "wouter";
 
 const formSchema = z.object({
-  username: z.string().min(3).max(50),
-  password: z.string().min(8),
-  email: z.string().email(),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
 export default function AuthPage() {
   const { login, register } = useUser();
   const [isLoading, setIsLoading] = useState(false);
+  const [, setLocation] = useLocation();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
-      password: "",
       email: "",
+      password: "",
     },
   });
 
@@ -35,6 +35,8 @@ export default function AuthPage() {
         await login(values);
       } else {
         await register(values);
+        // After successful registration, redirect to login
+        setLocation("/");
       }
     } finally {
       setIsLoading(false);
@@ -59,12 +61,12 @@ export default function AuthPage() {
                 <form onSubmit={form.handleSubmit((values) => onSubmit(values, true))} className="space-y-4">
                   <FormField
                     control={form.control}
-                    name="username"
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Username</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input {...field} />
+                          <Input type="email" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -90,19 +92,6 @@ export default function AuthPage() {
               </TabsContent>
               <TabsContent value="register">
                 <form onSubmit={form.handleSubmit((values) => onSubmit(values, false))} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="username"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Username</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                   <FormField
                     control={form.control}
                     name="email"
