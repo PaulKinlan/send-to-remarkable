@@ -8,7 +8,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useUser } from "../hooks/use-user";
-import { useLocation } from "wouter";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -18,7 +17,7 @@ const formSchema = z.object({
 export default function AuthPage() {
   const { login, register } = useUser();
   const [isLoading, setIsLoading] = useState(false);
-  const [, setLocation] = useLocation();
+  const [activeTab, setActiveTab] = useState("login");
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -35,8 +34,9 @@ export default function AuthPage() {
         await login(values);
       } else {
         await register(values);
-        // After successful registration, redirect to login
-        setLocation("/");
+        // After successful registration, switch to login tab and reset form
+        setActiveTab("login");
+        form.reset();
       }
     } finally {
       setIsLoading(false);
@@ -51,7 +51,7 @@ export default function AuthPage() {
           <CardDescription>Send documents to your reMarkable device via email.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="login">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Register</TabsTrigger>
