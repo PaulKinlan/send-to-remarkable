@@ -8,6 +8,7 @@ import { promisify } from "util";
 import { users, type User } from "@db/schema.js";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
+import { sendVerificationEmail } from "./sendgrid.js";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -77,6 +78,11 @@ export function setupAuth(app: Express) {
             return done(null, false, { message: "Invalid email or password" });
           }
 
+          if (!user.emailValidated) {
+            console.log(`Email not verified for user: ${email}`);
+            return done(null, false, { message: "Please verify your email address first" });
+          }
+
           const { password: _, ...userWithoutPassword } = user;
           console.log(`Successful login for email: ${email}`);
           return done(null, userWithoutPassword);
@@ -137,14 +143,27 @@ export function setupAuth(app: Express) {
 
       const hashedPassword = await crypto.hash(password);
 
-      await db.insert(users).values({
-        email,
-        password: hashedPassword,
-        emailValidated: false,
-      });
+      // Insert new user
+      const [user] = await db.insert(users)
+        .values({
+          email,
+          password: hashedPassword,
+          emailValidated: false,
+        })
+        .returning();
+
+      if (!user) {
+        throw new Error("Failed to create user");
+      }
+
+      // Send verification email
+      await sendVerificationEmail(email, user.id);
 
       console.log(`Successfully registered user: ${email}`);
-      res.status(200).send("Registration successful");
+      res.status(200).json({
+        message: "Registration successful. Please check your email to verify your account.",
+        requiresVerification: true
+      });
     } catch (error) {
       console.error("Registration error:", error);
       next(error);

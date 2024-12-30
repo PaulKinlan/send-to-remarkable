@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 import { useUser } from "../hooks/use-user";
+import { useLocation } from "wouter";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -18,6 +20,22 @@ export default function AuthPage() {
   const { login, register } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const { toast } = useToast();
+  const [_, setLocation] = useLocation();
+
+  useEffect(() => {
+    // Check for verification success in URL
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('verified') === 'true') {
+      toast({
+        title: "Email Verified",
+        description: "Your email has been verified. You can now log in.",
+      });
+      setLocation('/', { replace: true }); // Clear the URL parameter
+      setActiveTab('login');
+    }
+  }, [toast, setLocation]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -33,11 +51,15 @@ export default function AuthPage() {
       if (isLogin) {
         await login(values);
       } else {
-        await register(values);
-        // After successful registration, switch to login tab and reset form
-        setActiveTab("login");
-        form.reset();
+        const result = await register(values);
+        if (result.requiresVerification) {
+          setVerificationStatus("Please check your email to verify your account before logging in.");
+          setActiveTab("login");
+          form.reset();
+        }
       }
+    } catch (error) {
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -51,6 +73,12 @@ export default function AuthPage() {
           <CardDescription>Send documents to your reMarkable device via email.</CardDescription>
         </CardHeader>
         <CardContent>
+          {verificationStatus && (
+            <div className="mb-4 p-4 bg-green-50 text-green-700 rounded-md">
+              {verificationStatus}
+            </div>
+          )}
+
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
