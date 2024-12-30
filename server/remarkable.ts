@@ -29,6 +29,25 @@ function generateEmailIdentifier(): string {
 }
 
 export function setupRemarkable(app: Express) {
+  // Get registered devices for the authenticated user
+  app.get("/api/devices", async (req, res) => {
+    if (!req.isAuthenticated() || !req.user) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const userDevices = await db
+        .select()
+        .from(devices)
+        .where(eq(devices.userId, req.user.id));
+
+      res.json(userDevices);
+    } catch (error) {
+      console.error("Error fetching devices:", error);
+      res.status(500).send("Error fetching devices");
+    }
+  });
+
   app.post("/api/device/register", async (req, res) => {
     if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Not authenticated");

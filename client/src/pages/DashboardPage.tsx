@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from "../hooks/use-user";
 import DeviceRegistration from "../components/DeviceRegistration";
+import DevicesList from "../components/DevicesList";
 import EmailSettings from "../components/EmailSettings";
 
 export default function DashboardPage() {
@@ -20,6 +21,7 @@ export default function DashboardPage() {
 
         <div className="grid gap-8">
           <DeviceRegistration />
+          <DevicesList />
           <EmailSettings />
 
           <Card>
