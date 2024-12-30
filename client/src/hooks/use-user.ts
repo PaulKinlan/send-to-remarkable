@@ -4,15 +4,19 @@ import { useToast } from '@/hooks/use-toast';
 
 type RequestResult = {
   ok: true;
+  requiresVerification?: boolean;
+  message?: string;
 } | {
   ok: false;
   message: string;
+  requiresVerification?: boolean;
+  emailError?: boolean;
 };
 
 async function handleRequest(
   url: string,
   method: string,
-  body?: InsertUser | { oneTimeCode: string }
+  body?: InsertUser | { oneTimeCode: string; recaptchaToken?: string }
 ): Promise<RequestResult> {
   try {
     const response = await fetch(url, {
@@ -31,7 +35,8 @@ async function handleRequest(
       return { ok: false, message };
     }
 
-    return { ok: true };
+    const data = await response.json();
+    return { ok: true, ...data };
   } catch (e: any) {
     return { ok: false, message: e.toString() };
   }

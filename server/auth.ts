@@ -38,6 +38,13 @@ declare global {
   }
 }
 
+interface RecaptchaResponse {
+  success: boolean;
+  challenge_ts?: string;
+  hostname?: string;
+  "error-codes"?: string[];
+}
+
 async function verifyRecaptcha(token: string): Promise<boolean> {
   try {
     const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
@@ -48,7 +55,10 @@ async function verifyRecaptcha(token: string): Promise<boolean> {
       body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${token}`,
     });
 
-    const data = await response.json();
+    const data = await response.json() as RecaptchaResponse;
+    if (!data.success) {
+      console.error('reCAPTCHA verification failed:', data["error-codes"]);
+    }
     return data.success === true;
   } catch (error) {
     console.error('reCAPTCHA verification error:', error);
@@ -126,6 +136,8 @@ export function setupAuth(app: Express) {
           email: users.email,
           emailValidated: users.emailValidated,
           createdAt: users.createdAt,
+          verificationToken: users.verificationToken,
+          verificationTokenExpiry: users.verificationTokenExpiry,
         })
         .from(users)
         .where(eq(users.id, id))

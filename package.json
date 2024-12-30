@@ -45,6 +45,7 @@
     "@replit/vite-plugin-shadcn-theme-json": "^0.0.4",
     "@sendgrid/mail": "^8.1.4",
     "@tanstack/react-query": "^5.60.5",
+    "@types/react-google-recaptcha": "^2.1.9",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
