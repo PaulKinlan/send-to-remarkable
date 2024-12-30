@@ -5,7 +5,7 @@ import session from "express-session";
 import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, type User } from "@db/schema";
+import { users, type User } from "@db/schema.js";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 
@@ -22,7 +22,7 @@ const crypto = {
     const suppliedPasswordBuf = (await scryptAsync(
       suppliedPassword,
       salt,
-      64
+      64,
     )) as Buffer;
     return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
   },
@@ -46,7 +46,7 @@ export function setupAuth(app: Express) {
       store: new MemoryStore({
         checkPeriod: 86400000,
       }),
-    })
+    }),
   );
 
   app.use(passport.initialize());
@@ -55,7 +55,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(
       {
-        usernameField: 'email',
+        usernameField: "email",
       },
       async (email, password, done) => {
         try {
@@ -81,11 +81,11 @@ export function setupAuth(app: Express) {
           console.log(`Successful login for email: ${email}`);
           return done(null, userWithoutPassword);
         } catch (err) {
-          console.error('Login error:', err);
+          console.error("Login error:", err);
           return done(err);
         }
-      }
-    )
+      },
+    ),
   );
 
   passport.serializeUser((user, done) => {
@@ -114,14 +114,14 @@ export function setupAuth(app: Express) {
       console.log(`Successfully deserialized user: ${user.email}`);
       done(null, user);
     } catch (err) {
-      console.error('Deserialization error:', err);
+      console.error("Deserialization error:", err);
       done(err);
     }
   });
 
   app.post("/api/register", async (req, res, next) => {
     try {
-      console.log('Received registration request:', req.body);
+      console.log("Received registration request:", req.body);
       const { email, password } = req.body;
 
       const [existingUser] = await db
@@ -137,43 +137,44 @@ export function setupAuth(app: Express) {
 
       const hashedPassword = await crypto.hash(password);
 
-      await db
-        .insert(users)
-        .values({
-          email,
-          password: hashedPassword,
-          emailValidated: false,
-        });
+      await db.insert(users).values({
+        email,
+        password: hashedPassword,
+        emailValidated: false,
+      });
 
       console.log(`Successfully registered user: ${email}`);
       res.status(200).send("Registration successful");
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error("Registration error:", error);
       next(error);
     }
   });
 
   app.post("/api/login", (req, res, next) => {
-    console.log('Received login request:', { email: req.body.email });
+    console.log("Received login request:", { email: req.body.email });
 
-    passport.authenticate("local", (err: Error, user: Express.User, info: IVerifyOptions) => {
-      if (err) {
-        console.error('Login error:', err);
-        return next(err);
-      }
-      if (!user) {
-        console.log('Login failed:', info.message);
-        return res.status(400).send(info.message);
-      }
-      req.login(user, (err) => {
+    passport.authenticate(
+      "local",
+      (err: Error, user: Express.User, info: IVerifyOptions) => {
         if (err) {
-          console.error('Session creation error:', err);
+          console.error("Login error:", err);
           return next(err);
         }
-        console.log(`Login successful for user: ${user.email}`);
-        return res.json(user);
-      });
-    })(req, res, next);
+        if (!user) {
+          console.log("Login failed:", info.message);
+          return res.status(400).send(info.message);
+        }
+        req.login(user, (err) => {
+          if (err) {
+            console.error("Session creation error:", err);
+            return next(err);
+          }
+          console.log(`Login successful for user: ${user.email}`);
+          return res.json(user);
+        });
+      },
+    )(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
@@ -191,7 +192,7 @@ export function setupAuth(app: Express) {
       console.log(`Retrieved user data for: ${req.user.email}`);
       return res.json(req.user);
     }
-    console.log('Unauthorized access attempt to /api/user');
+    console.log("Unauthorized access attempt to /api/user");
     res.status(401).send("Not authenticated");
   });
 }

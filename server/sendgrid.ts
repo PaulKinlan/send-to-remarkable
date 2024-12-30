@@ -5,12 +5,15 @@ import { eq } from "drizzle-orm";
 import { uploadToRemarkable } from "./remarkable.js";
 import sgMail from "@sendgrid/mail";
 import puppeteer from "puppeteer";
+import multer from "multer";
 
 if (!process.env.SENDGRID_API_KEY) {
   throw new Error("SENDGRID_API_KEY environment variable is required");
 }
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+const upload = multer();
 
 interface EmailWebhookBody {
   to: string;
@@ -19,17 +22,18 @@ interface EmailWebhookBody {
   html?: string;
   attachments?: Array<{
     filename: string;
-    content: string;  // Base64 encoded content
+    content: string; // Base64 encoded content
     contentType: string;
   }>;
 }
 
 export function setupSendGrid(app: Express) {
-  app.post("/api/webhook/email", async (req, res) => {
+  app.post("/api/webhook/email", upload.none(), async (req, res) => {
     console.log("Received email webhook:", JSON.stringify(req.body, null, 2));
 
     try {
-      const { to, from, subject, html, attachments } = req.body as EmailWebhookBody;
+      const { to, from, subject, html, attachments } =
+        req.body as EmailWebhookBody;
 
       if (!to || !from) {
         console.error("Missing required fields in webhook payload");
@@ -37,8 +41,8 @@ export function setupSendGrid(app: Express) {
       }
 
       // Parse the delivery email to get username and user ID
-      const [emailPrefix] = to.split('@');
-      const [username, userId] = emailPrefix.split('.');
+      const [emailPrefix] = to.split("@");
+      const [username, userId] = emailPrefix.split(".");
 
       if (!username || !userId) {
         console.error(`Invalid delivery address format: ${to}`);
@@ -54,7 +58,9 @@ export function setupSendGrid(app: Express) {
 
       if (!user || !user.emailValidated) {
         console.error(`Invalid user or unverified email: ${to}`);
-        return res.status(400).send("Invalid delivery address or unverified email");
+        return res
+          .status(400)
+          .send("Invalid delivery address or unverified email");
       }
 
       // Get user's device
@@ -73,11 +79,11 @@ export function setupSendGrid(app: Express) {
       if (attachments && attachments.length > 0) {
         console.log(`Processing ${attachments.length} attachments`);
         for (const attachment of attachments) {
-          const content = Buffer.from(attachment.content, 'base64');
+          const content = Buffer.from(attachment.content, "base64");
           await uploadToRemarkable(device.deviceToken, {
             filename: attachment.filename,
             content,
-            contentType: attachment.contentType
+            contentType: attachment.contentType,
           });
         }
       } else if (html) {
@@ -85,9 +91,9 @@ export function setupSendGrid(app: Express) {
         console.log("Converting HTML content to PDF");
         const pdfBuffer = await convertHtmlToPdf(html);
         await uploadToRemarkable(device.deviceToken, {
-          filename: `${subject || 'Email'}.pdf`,
+          filename: `${subject || "Email"}.pdf`,
           content: pdfBuffer,
-          contentType: 'application/pdf'
+          contentType: "application/pdf",
         });
       } else {
         console.error("No content to process");
@@ -105,22 +111,22 @@ export function setupSendGrid(app: Express) {
 
 async function convertHtmlToPdf(html: string): Promise<Buffer> {
   const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
   try {
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: "networkidle0" });
 
     const pdf = await page.pdf({
-      format: 'A4',
+      format: "A4",
       printBackground: true,
       margin: {
-        top: '20px',
-        right: '20px',
-        bottom: '20px',
-        left: '20px'
-      }
+        top: "20px",
+        right: "20px",
+        bottom: "20px",
+        left: "20px",
+      },
     });
 
     return Buffer.from(pdf);
