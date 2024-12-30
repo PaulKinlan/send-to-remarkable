@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import ReCAPTCHA from "react-google-recaptcha";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -14,6 +15,7 @@ import { useLocation } from "wouter";
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
+  recaptchaToken: z.string().min(1, "Please complete the reCAPTCHA verification")
 });
 
 export default function AuthPage() {
@@ -23,6 +25,7 @@ export default function AuthPage() {
   const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   useEffect(() => {
     // Check for verification success in URL
@@ -42,8 +45,16 @@ export default function AuthPage() {
     defaultValues: {
       email: "",
       password: "",
+      recaptchaToken: ""
     },
   });
+
+  function onRecaptchaChange(token: string | null) {
+    if (token) {
+      form.setValue('recaptchaToken', token);
+      setRecaptchaToken(token);
+    }
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>, isLogin: boolean) {
     setIsLoading(true);
@@ -51,7 +62,12 @@ export default function AuthPage() {
       if (isLogin) {
         await login(values);
       } else {
-        const result = await register(values);
+        // Only include recaptchaToken for registration
+        const result = await register({
+          email: values.email,
+          password: values.password,
+          recaptchaToken: values.recaptchaToken
+        });
         if (result.requiresVerification) {
           setVerificationStatus("Please check your email to verify your account before logging in.");
           setActiveTab("login");
@@ -146,7 +162,13 @@ export default function AuthPage() {
                       </FormItem>
                     )}
                   />
-                  <Button type="submit" className="w-full" disabled={isLoading}>
+                  <div className="flex justify-center my-4">
+                    <ReCAPTCHA
+                      sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                      onChange={onRecaptchaChange}
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading || !recaptchaToken}>
                     Register
                   </Button>
                 </form>

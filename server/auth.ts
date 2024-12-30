@@ -9,6 +9,7 @@ import { users, type User } from "@db/schema.js";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
 import { sendVerificationEmail } from "./sendgrid.js";
+import fetch from "node-fetch";
 
 const scryptAsync = promisify(scrypt);
 const crypto = {
@@ -34,6 +35,24 @@ type SafeUser = Omit<User, "password">;
 declare global {
   namespace Express {
     interface User extends SafeUser {}
+  }
+}
+
+async function verifyRecaptcha(token: string): Promise<boolean> {
+  try {
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `secret=${process.env.RECAPTCHA_SECRET_KEY}&response=${token}`,
+    });
+
+    const data = await response.json();
+    return data.success === true;
+  } catch (error) {
+    console.error('reCAPTCHA verification error:', error);
+    return false;
   }
 }
 
@@ -128,7 +147,19 @@ export function setupAuth(app: Express) {
   app.post("/api/register", async (req, res, next) => {
     try {
       console.log("Received registration request:", req.body);
-      const { email, password } = req.body;
+      const { email, password, recaptchaToken } = req.body;
+
+      // Verify reCAPTCHA token
+      if (!recaptchaToken) {
+        console.log('Registration failed: No reCAPTCHA token provided');
+        return res.status(400).send("Please complete the reCAPTCHA verification");
+      }
+
+      const isValidRecaptcha = await verifyRecaptcha(recaptchaToken);
+      if (!isValidRecaptcha) {
+        console.log('Registration failed: Invalid reCAPTCHA token');
+        return res.status(400).send("reCAPTCHA verification failed");
+      }
 
       const [existingUser] = await db
         .select()
