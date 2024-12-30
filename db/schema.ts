@@ -15,6 +15,7 @@ export const devices = pgTable("devices", {
   userId: serial("user_id").references(() => users.id).notNull(),
   deviceToken: text("device_token").notNull(),
   oneTimeCode: text("one_time_code").notNull(),
+  emailId: text("email_id").unique().notNull(),
   registered: boolean("registered").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

@@ -7,6 +7,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useUser } from "../hooks/use-user";
+import { useToast } from "@/hooks/use-toast";
 
 const formSchema = z.object({
   oneTimeCode: z.string().length(8, "One-time code must be exactly 8 characters"),
@@ -15,6 +16,8 @@ const formSchema = z.object({
 export default function DeviceRegistration() {
   const { registerDevice } = useUser();
   const [isLoading, setIsLoading] = useState(false);
+  const [emailId, setEmailId] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -26,8 +29,19 @@ export default function DeviceRegistration() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      await registerDevice(values);
+      const response = await registerDevice(values);
       form.reset();
+      setEmailId(response.emailId);
+      toast({
+        title: "Device registered successfully",
+        description: `Your delivery email address is: ${response.emailId}`,
+      });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to register device. Please try again.",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -60,6 +74,13 @@ export default function DeviceRegistration() {
             <Button type="submit" disabled={isLoading}>
               Register Device
             </Button>
+
+            {emailId && (
+              <div className="mt-4 p-4 bg-muted rounded-lg">
+                <p className="text-sm font-medium">Your delivery email address:</p>
+                <p className="text-sm font-mono mt-1">{emailId}</p>
+              </div>
+            )}
           </form>
         </Form>
       </CardContent>

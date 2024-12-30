@@ -3,6 +3,7 @@ import { db } from "@db";
 import { devices } from "@db/schema.js";
 import { eq } from "drizzle-orm";
 import { register, remarkable } from "rmapi-js/dist/rmapi-js.esm.min.js";
+import { generate } from "random-words";
 
 // Define types for rmapi-js functions
 type RmapiModule = {
@@ -22,8 +23,12 @@ type RmapiModule = {
 
 let rmapiModule: RmapiModule;
 
+function generateEmailIdentifier(): string {
+  const words = generate({ exactly: 5, join: '-' });
+  return `${words}@in.sendvia.me`;
+}
+
 export function setupRemarkable(app: Express) {
-  // Initialize rmapi-js when setting up routes
   app.post("/api/device/register", async (req, res) => {
     if (!req.isAuthenticated() || !req.user) {
       return res.status(401).send("Not authenticated");
@@ -39,15 +44,23 @@ export function setupRemarkable(app: Express) {
       const deviceToken = await register(oneTimeCode);
       console.log(`Device registered successfully with token: ${deviceToken}`);
 
-      // Save device token
+      // Generate unique email identifier
+      const emailId = generateEmailIdentifier();
+      console.log(`Generated email identifier: ${emailId}`);
+
+      // Save device token and email identifier
       await db.insert(devices).values({
         userId: req.user.id,
         deviceToken,
         oneTimeCode,
+        emailId,
         registered: true,
       });
 
-      res.json({ message: "Device registered successfully" });
+      res.json({ 
+        message: "Device registered successfully",
+        emailId 
+      });
     } catch (error) {
       console.error("Error registering device:", error);
       res.status(500).send("Error registering device");
