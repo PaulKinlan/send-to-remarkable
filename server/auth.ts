@@ -143,21 +143,37 @@ export function setupAuth(app: Express) {
 
       const hashedPassword = await crypto.hash(password);
 
-      // Insert new user
+      // Insert new user with explicit null values for new columns
       const [user] = await db.insert(users)
         .values({
           email,
           password: hashedPassword,
           emailValidated: false,
+          verificationToken: null,
+          verificationTokenExpiry: null,
         })
         .returning();
 
       if (!user) {
+        console.error("User creation failed - no user returned");
         throw new Error("Failed to create user");
       }
 
-      // Send verification email
-      await sendVerificationEmail(email, user.id);
+      console.log("Created user:", { id: user.id, email: user.email });
+
+      try {
+        // Send verification email
+        await sendVerificationEmail(email, user.id);
+        console.log(`Verification email sent to: ${email}`);
+      } catch (emailError) {
+        console.error("Failed to send verification email:", emailError);
+        // Continue with registration but inform the user about email issues
+        return res.status(200).json({
+          message: "Registration successful but verification email failed to send. Please try again later.",
+          requiresVerification: true,
+          emailError: true
+        });
+      }
 
       console.log(`Successfully registered user: ${email}`);
       res.status(200).json({
