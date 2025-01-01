@@ -1,5 +1,10 @@
 {
-  "include": ["client/src/**/*", "db/**/*", "server/**/*"],
+  "include": [
+    "client/src/**/*",
+    "db/**/*",
+    "server/**/*",
+    "server/.puppeteer.config.js"
+  ],
   "exclude": ["node_modules", "build", "dist", "**/*.test.ts"],
   "compilerOptions": {
     "incremental": true,

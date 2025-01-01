@@ -187,19 +187,20 @@ export function setupSendGrid(app: Express) {
       console.log(req.files);
       const attachments = req.files as Express.Multer.File[];
 
-      const validFilenames: string[] = Object.values(
-        JSON.parse(req.body["attachment-info"]) as {
-          [field: string]: { filename: string };
-        },
-      ).map((info) => info.filename);
-
-      console.log(`Valid filenames: ${validFilenames}`);
       // Process attachments if present
       if (
         attachments &&
         attachments.length > 0 &&
         "attachment-info" in req.body
       ) {
+        const validFilenames: string[] = Object.values(
+          JSON.parse(req.body["attachment-info"]) as {
+            [field: string]: { filename: string };
+          },
+        ).map((info) => info.filename);
+
+        console.log(`Valid filenames: ${validFilenames}`);
+
         console.log(`Processing ${attachments.length} attachments`);
         for (const attachment of attachments) {
           console.log(`Processing attachment: ${attachment.originalname}`);

@@ -45,6 +45,7 @@ export default function DashboardPage() {
                 <p className="text-muted-foreground">
                   Get a one-time code from{" "}
                   <a
+                    className="text-blue-500 hover:underline"
                     target="_blank"
                     href="https://my.remarkable.com/device/mobile/connect"
                   >

@@ -28,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
 import { useLocation } from "wouter";
 
-const formSchema = z.object({
+const registerFormSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   recaptchaToken: z
@@ -36,7 +36,13 @@ const formSchema = z.object({
     .min(1, "Please complete the reCAPTCHA verification"),
 });
 
-type FormData = z.infer<typeof formSchema>;
+const loginFormSchema = z.object({
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+type RegisterFormData = z.infer<typeof registerFormSchema>;
+type LoginFormData = z.infer<typeof loginFormSchema>;
 
 const RECAPTCHA_SITE_KEY = "6LcYRKkqAAAAAEcuWK8LBvsqElzKLPwCZMGBmejQ";
 
@@ -72,8 +78,8 @@ export default function AuthPage() {
     }
   }, [toast, setLocation]);
 
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+  const registerForm = useForm<RegisterFormData>({
+    resolver: zodResolver(registerFormSchema),
     defaultValues: {
       email: "",
       password: "",
@@ -81,14 +87,22 @@ export default function AuthPage() {
     },
   });
 
+  const loginForm = useForm<LoginFormData>({
+    resolver: zodResolver(loginFormSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
   const verifyReCaptcha = useCallback((token: string) => {
     setRecaptchaError(null);
 
-    form.setValue("recaptchaToken", token);
+    registerForm.setValue("recaptchaToken", token);
     setRecaptchaToken(token);
   }, []);
 
-  async function onSubmit(values: FormData, isLogin: boolean) {
+  async function onSubmit(values: RegisterFormData, isLogin: boolean) {
     setIsLoading(true);
     try {
       if (isLogin) {
@@ -113,7 +127,7 @@ export default function AuthPage() {
             "Please check your email to verify your account before logging in.",
           );
           setActiveTab("login");
-          form.reset();
+          registerForm.reset();
         }
       }
     } catch (error) {
@@ -145,16 +159,17 @@ export default function AuthPage() {
               <TabsTrigger value="login">Login</TabsTrigger>
               <TabsTrigger value="register">Register</TabsTrigger>
             </TabsList>
-            <Form {...form}>
-              <TabsContent value="login">
+
+            <TabsContent value="login">
+              <Form {...loginForm}>
                 <form
-                  onSubmit={form.handleSubmit((values) =>
+                  onSubmit={loginForm.handleSubmit((values) =>
                     onSubmit(values, true),
                   )}
                   className="space-y-4"
                 >
                   <FormField
-                    control={form.control}
+                    control={loginForm.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -167,7 +182,7 @@ export default function AuthPage() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={loginForm.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
@@ -183,16 +198,18 @@ export default function AuthPage() {
                     Login
                   </Button>
                 </form>
-              </TabsContent>
-              <TabsContent value="register">
+              </Form>
+            </TabsContent>
+            <TabsContent value="register">
+              <Form {...registerForm}>
                 <form
-                  onSubmit={form.handleSubmit((values) =>
+                  onSubmit={registerForm.handleSubmit((values) =>
                     onSubmit(values, false),
                   )}
                   className="space-y-4"
                 >
                   <FormField
-                    control={form.control}
+                    control={registerForm.control}
                     name="email"
                     render={({ field }) => (
                       <FormItem>
@@ -205,7 +222,7 @@ export default function AuthPage() {
                     )}
                   />
                   <FormField
-                    control={form.control}
+                    control={registerForm.control}
                     name="password"
                     render={({ field }) => (
                       <FormItem>
@@ -248,8 +265,8 @@ export default function AuthPage() {
                     Register
                   </Button>
                 </form>
-              </TabsContent>
-            </Form>
+              </Form>
+            </TabsContent>
           </Tabs>
         </CardContent>
       </Card>
