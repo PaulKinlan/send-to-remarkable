@@ -2,29 +2,15 @@ import type { Express } from "express";
 import { db } from "@db";
 import { devices } from "@db/schema.js";
 import { eq } from "drizzle-orm";
-import { register, remarkable } from "rmapi-js/dist/rmapi-js.esm.min.js";
+import {
+  register,
+  remarkable,
+  UploadEntry,
+} from "rmapi-js/dist/rmapi-js.esm.min.js";
 import { generate } from "random-words";
 
-// Define types for rmapi-js functions
-type RmapiModule = {
-  register: (code: string) => Promise<string>;
-  remarkable: (token: string) => Promise<{
-    uploadPdf: (
-      filename: string,
-      content: Buffer,
-    ) => Promise<{
-      ID: string;
-      Version: number;
-      Message: string;
-      Success: boolean;
-    }>;
-  }>;
-};
-
-let rmapiModule: RmapiModule;
-
 function generateEmailIdentifier(): string {
-  const words = generate({ exactly: 5, join: '-' });
+  const words = generate({ exactly: 5, join: "-" });
   return `${words}@in.sendvia.me`;
 }
 
@@ -76,9 +62,9 @@ export function setupRemarkable(app: Express) {
         registered: true,
       });
 
-      res.json({ 
+      res.json({
         message: "Device registered successfully",
-        emailId 
+        emailId,
       });
     } catch (error) {
       console.error("Error registering device:", error);
@@ -91,29 +77,32 @@ export async function uploadToRemarkable(
   deviceToken: string,
   file: {
     filename: string;
-    content: Buffer;
+    content: ArrayBuffer;
     contentType: string;
   },
 ) {
   try {
-    console.log(`Uploading file ${file.filename} to Remarkable`);
+    let { content, filename, contentType } = file;
+    console.log(`Uploading file ${filename} to Remarkable`);
 
     // Create a new API instance with the device token
     const api = await remarkable(deviceToken);
 
     // Convert the file to PDF if it's not already
-    let pdfContent = file.content;
-    if (file.contentType !== "application/pdf") {
-      // For now, we assume the content is already in PDF format
-      // In the future, we can add conversion logic here
+
+    let result: UploadEntry;
+
+    if (contentType === "application/pdf") {
+      // Upload the document using the API instance
+      result = await api.uploadPdf(filename, content);
+    } else if (file.contentType === "application/epub+zip") {
+      result = await api.uploadEpub(filename, content);
+    } else {
       console.log(`File ${file.filename} is not PDF, conversion may be needed`);
+      return false;
     }
-
-    // Upload the document using the API instance
-    const result = await api.uploadPdf(file.filename, pdfContent);
-
-    if (!result.Success) {
-      throw new Error(`Upload failed: ${result.Message}`);
+    if (!result) {
+      throw new Error(`Upload failed`);
     }
 
     console.log(`Successfully uploaded ${file.filename} to Remarkable`);

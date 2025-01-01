@@ -1,51 +1,74 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import type { ReCAPTCHA as ReCAPTCHAType } from "react-google-recaptcha";
-import ReCAPTCHA from "react-google-recaptcha";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Button } from "../components/ui/button";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../components/ui/form";
-import { Input } from "../components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { useToast } from "../hooks/use-toast";
-import { useUser } from "../hooks/use-user";
+import {
+  GoogleReCaptchaProvider,
+  GoogleReCaptcha,
+} from "react-google-recaptcha-v3";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/hooks/use-user";
 import { useLocation } from "wouter";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  recaptchaToken: z.string().min(1, "Please complete the reCAPTCHA verification")
+  recaptchaToken: z
+    .string()
+    .min(1, "Please complete the reCAPTCHA verification"),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
-const RECAPTCHA_SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+const RECAPTCHA_SITE_KEY = "6LcYRKkqAAAAAEcuWK8LBvsqElzKLPwCZMGBmejQ";
+
+// Add debug logging
+console.log("RECAPTCHA_SITE_KEY available:", !!RECAPTCHA_SITE_KEY);
 
 if (!RECAPTCHA_SITE_KEY) {
-  console.error('Missing RECAPTCHA_SITE_KEY environment variable');
+  console.error("Missing RECAPTCHA_SITE_KEY environment variable");
 }
 
 export default function AuthPage() {
   const { login, register } = useUser();
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
-  const [verificationStatus, setVerificationStatus] = useState<string | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState<string | null>(
+    null,
+  );
   const { toast } = useToast();
   const [_, setLocation] = useLocation();
   const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
+  const [refreshReCaptcha, setRefreshReCaptcha] = useState(false);
   const [recaptchaError, setRecaptchaError] = useState<string | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('verified') === 'true') {
+    if (params.get("verified") === "true") {
       toast({
         title: "Email Verified",
         description: "Your email has been verified. You can now log in.",
       });
-      setLocation('/', { replace: true });
-      setActiveTab('login');
+      setLocation("/", { replace: true });
+      setActiveTab("login");
     }
   }, [toast, setLocation]);
 
@@ -54,26 +77,16 @@ export default function AuthPage() {
     defaultValues: {
       email: "",
       password: "",
-      recaptchaToken: ""
+      recaptchaToken: "",
     },
   });
 
-  function onRecaptchaChange(token: string | null) {
+  const verifyReCaptcha = useCallback((token: string) => {
     setRecaptchaError(null);
-    if (token) {
-      form.setValue('recaptchaToken', token);
-      setRecaptchaToken(token);
-    }
-  }
 
-  function onRecaptchaError() {
-    setRecaptchaError("Failed to load reCAPTCHA. Please try again later.");
-    toast({
-      title: "Error",
-      description: "Failed to load reCAPTCHA. Please try again later.",
-      variant: "destructive"
-    });
-  }
+    form.setValue("recaptchaToken", token);
+    setRecaptchaToken(token);
+  }, []);
 
   async function onSubmit(values: FormData, isLogin: boolean) {
     setIsLoading(true);
@@ -84,24 +97,28 @@ export default function AuthPage() {
         if (!RECAPTCHA_SITE_KEY) {
           toast({
             title: "Error",
-            description: "Registration is temporarily unavailable. Please try again later.",
-            variant: "destructive"
+            description:
+              "Registration is temporarily unavailable. Please try again later.",
+            variant: "destructive",
           });
           return;
         }
         const result = await register({
           email: values.email,
           password: values.password,
-          recaptchaToken: values.recaptchaToken
+          recaptchaToken: values.recaptchaToken,
         });
         if (result.requiresVerification) {
-          setVerificationStatus("Please check your email to verify your account before logging in.");
+          setVerificationStatus(
+            "Please check your email to verify your account before logging in.",
+          );
           setActiveTab("login");
           form.reset();
         }
       }
     } catch (error) {
-      console.error(error);
+      console.error("Form submission error:", error);
+      setRefreshReCaptcha(!refreshReCaptcha);
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +129,9 @@ export default function AuthPage() {
       <Card className="w-full max-w-md mx-4">
         <CardHeader>
           <CardTitle>remarkable-email</CardTitle>
-          <CardDescription>Send documents to your reMarkable device via email.</CardDescription>
+          <CardDescription>
+            Send documents to your reMarkable device via email.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {verificationStatus && (
@@ -128,7 +147,12 @@ export default function AuthPage() {
             </TabsList>
             <Form {...form}>
               <TabsContent value="login">
-                <form onSubmit={form.handleSubmit((values) => onSubmit(values, true))} className="space-y-4">
+                <form
+                  onSubmit={form.handleSubmit((values) =>
+                    onSubmit(values, true),
+                  )}
+                  className="space-y-4"
+                >
                   <FormField
                     control={form.control}
                     name="email"
@@ -161,7 +185,12 @@ export default function AuthPage() {
                 </form>
               </TabsContent>
               <TabsContent value="register">
-                <form onSubmit={form.handleSubmit((values) => onSubmit(values, false))} className="space-y-4">
+                <form
+                  onSubmit={form.handleSubmit((values) =>
+                    onSubmit(values, false),
+                  )}
+                  className="space-y-4"
+                >
                   <FormField
                     control={form.control}
                     name="email"
@@ -190,11 +219,14 @@ export default function AuthPage() {
                   />
                   {RECAPTCHA_SITE_KEY ? (
                     <div className="flex justify-center my-4">
-                      <ReCAPTCHA
-                        sitekey={RECAPTCHA_SITE_KEY}
-                        onChange={onRecaptchaChange}
-                        onError={onRecaptchaError}
-                      />
+                      <GoogleReCaptchaProvider
+                        reCaptchaKey={RECAPTCHA_SITE_KEY}
+                      >
+                        <GoogleReCaptcha
+                          onVerify={verifyReCaptcha}
+                          refreshReCaptcha={refreshReCaptcha}
+                        />
+                      </GoogleReCaptchaProvider>
                     </div>
                   ) : (
                     <div className="text-red-500 text-center p-2">
@@ -209,7 +241,9 @@ export default function AuthPage() {
                   <Button
                     type="submit"
                     className="w-full"
-                    disabled={isLoading || !recaptchaToken || !RECAPTCHA_SITE_KEY}
+                    disabled={
+                      isLoading || !recaptchaToken || !RECAPTCHA_SITE_KEY
+                    }
                   >
                     Register
                   </Button>

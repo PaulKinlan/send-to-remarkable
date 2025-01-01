@@ -1,11 +1,12 @@
-import type { Express } from "express";
+import type { Express, Request } from "express";
+import addresses, { ParsedMailbox } from "email-addresses";
 import { db } from "@db/index.js";
 import { users, devices } from "@db/schema.js";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { uploadToRemarkable } from "./remarkable.js";
 import sgMail from "@sendgrid/mail";
 import puppeteer from "puppeteer";
-import multer from "multer";
+import multer, { Multer } from "multer";
 import crypto from "crypto";
 
 if (!process.env.SENDGRID_API_KEY) {
@@ -14,7 +15,7 @@ if (!process.env.SENDGRID_API_KEY) {
 
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-const upload = multer();
+const upload = multer({ storage: multer.memoryStorage() });
 
 interface EmailWebhookBody {
   to: string;
@@ -30,11 +31,23 @@ interface EmailWebhookBody {
 
 // Generate a random verification token
 function generateVerificationToken(): string {
-  return crypto.randomBytes(32).toString('hex');
+  return crypto.randomBytes(32).toString("hex");
+}
+
+function toArrayBuffer(buffer: Buffer) {
+  const arrayBuffer = new ArrayBuffer(buffer.length);
+  const view = new Uint8Array(arrayBuffer);
+  for (let i = 0; i < buffer.length; ++i) {
+    view[i] = buffer[i];
+  }
+  return arrayBuffer;
 }
 
 // Send verification email
-export async function sendVerificationEmail(userEmail: string, userId: number): Promise<void> {
+export async function sendVerificationEmail(
+  userEmail: string,
+  userId: number,
+): Promise<void> {
   const verificationToken = generateVerificationToken();
   const verificationTokenExpiry = new Date();
   verificationTokenExpiry.setHours(verificationTokenExpiry.getHours() + 24); // Token expires in 24 hours
@@ -48,12 +61,12 @@ export async function sendVerificationEmail(userEmail: string, userId: number): 
     })
     .where(eq(users.id, userId));
 
-  const verificationLink = `${process.env.APP_URL || 'http://localhost:5000'}/api/verify-email?token=${verificationToken}`;
+  const verificationLink = `${process.env.APP_URL || "http://localhost:5000"}/api/verify-email?token=${verificationToken}`;
 
   const msg = {
     to: userEmail,
-    from: 'noreply@sendvia.me', // Update this to your verified sender
-    subject: 'Verify your email address',
+    from: "noreply@sendvia.me", // Update this to your verified sender
+    subject: "Verify your email address",
     html: `
       <div>
         <h1>Welcome to remarkable-email!</h1>
@@ -73,7 +86,7 @@ export function setupSendGrid(app: Express) {
   app.get("/api/verify-email", async (req, res) => {
     const { token } = req.query;
 
-    if (!token || typeof token !== 'string') {
+    if (!token || typeof token !== "string") {
       return res.status(400).send("Invalid verification token");
     }
 
@@ -89,7 +102,10 @@ export function setupSendGrid(app: Express) {
         return res.status(400).send("Invalid or expired verification token");
       }
 
-      if (user.verificationTokenExpiry && new Date() > new Date(user.verificationTokenExpiry)) {
+      if (
+        user.verificationTokenExpiry &&
+        new Date() > new Date(user.verificationTokenExpiry)
+      ) {
         return res.status(400).send("Verification token has expired");
       }
 
@@ -104,7 +120,7 @@ export function setupSendGrid(app: Express) {
         .where(eq(users.id, user.id));
 
       // Redirect to frontend with success message
-      res.redirect('/?verified=true');
+      res.redirect("/?verified=true");
     } catch (error) {
       console.error("Error verifying email:", error);
       res.status(500).send("Error verifying email");
@@ -112,35 +128,43 @@ export function setupSendGrid(app: Express) {
   });
 
   // Existing email webhook endpoint
-  app.post("/api/webhook/email", upload.none(), async (req, res) => {
+  app.post("/api/webhook/email", upload.any(), async (req: Request, res) => {
     console.log("Received email webhook:", JSON.stringify(req.body, null, 2));
 
     try {
-      const { to, from, subject, html, attachments } = req.body as EmailWebhookBody;
+      const { to, from, subject, html } = req.body as EmailWebhookBody;
 
       if (!to || !from) {
         console.error("Missing required fields in webhook payload");
         return res.status(400).send("Missing required fields");
       }
 
-      // Parse the delivery email to get username and user ID
-      const [emailPrefix] = to.split("@");
-      const [username, userId] = emailPrefix.split(".");
-
-      if (!username || !userId) {
-        console.error(`Invalid delivery address format: ${to}`);
-        return res.status(400).send("Invalid delivery address format");
+      const fromAddr = addresses.parseOneAddress(from) as ParsedMailbox;
+      if (!fromAddr) {
+        console.error(`Invalid from email address: ${from}`);
+        return res.status(400).send("Invalid from address or unverified email");
       }
+
+      const toAddr = addresses.parseOneAddress(to) as ParsedMailbox;
+      if (!toAddr) {
+        console.error(`Invalid from email address: ${to}`);
+        return res.status(400).send("Invalid address or unverified email");
+      }
+
+      const fromAddress = fromAddr.address;
+      const toAddress = toAddr.address;
 
       // Verify user exists and email is validated
       const [user] = await db
         .select()
         .from(users)
-        .where(eq(users.id, parseInt(userId)))
+        .where(
+          and(eq(users.email, fromAddress), eq(users.emailValidated, true)),
+        )
         .limit(1);
 
       if (!user || !user.emailValidated) {
-        console.error(`Invalid user or unverified email: ${to}`);
+        console.error(`Invalid user or unverified email: ${from}`);
         return res
           .status(400)
           .send("Invalid delivery address or unverified email");
@@ -150,24 +174,43 @@ export function setupSendGrid(app: Express) {
       const [device] = await db
         .select()
         .from(devices)
-        .where(eq(devices.userId, user.id))
+        .where(and(eq(devices.userId, user.id), eq(devices.emailId, toAddress)))
         .limit(1);
 
       if (!device || !device.registered) {
-        console.error(`No registered device found for user: ${user.id}`);
+        console.error(
+          `No registered device found for user: ${user.id} with address ${to}`,
+        );
         return res.status(400).send("No registered device found");
       }
 
+      console.log(req.files);
+      const attachments = req.files as Express.Multer.File[];
+
+      const validFilenames: string[] = Object.values(
+        JSON.parse(req.body["attachment-info"]) as {
+          [field: string]: { filename: string };
+        },
+      ).map((info) => info.filename);
+
+      console.log(`Valid filenames: ${validFilenames}`);
       // Process attachments if present
-      if (attachments && attachments.length > 0) {
+      if (
+        attachments &&
+        attachments.length > 0 &&
+        "attachment-info" in req.body
+      ) {
         console.log(`Processing ${attachments.length} attachments`);
         for (const attachment of attachments) {
-          const content = Buffer.from(attachment.content, "base64");
-          await uploadToRemarkable(device.deviceToken, {
-            filename: attachment.filename,
-            content,
-            contentType: attachment.contentType,
-          });
+          console.log(`Processing attachment: ${attachment.originalname}`);
+          if (validFilenames.indexOf(attachment.originalname) > -1) {
+            const content = toArrayBuffer(attachment.buffer);
+            await uploadToRemarkable(device.deviceToken, {
+              filename: attachment.originalname,
+              content,
+              contentType: attachment.mimetype,
+            });
+          }
         }
       } else if (html) {
         // Convert HTML to PDF if no attachments
@@ -175,7 +218,7 @@ export function setupSendGrid(app: Express) {
         const pdfBuffer = await convertHtmlToPdf(html);
         await uploadToRemarkable(device.deviceToken, {
           filename: `${subject || "Email"}.pdf`,
-          content: pdfBuffer,
+          content: toArrayBuffer(pdfBuffer),
           contentType: "application/pdf",
         });
       } else {
