@@ -15,6 +15,19 @@ function generateEmailIdentifier(): string {
 }
 
 export function setupRemarkable(app: Express) {
+  app.delete("/api/device/:id", async (req, res) => {
+    if (!req.user) {
+      return res.status(401).send("Unauthorized");
+    }
+
+    try {
+      await db.delete(devices).where(eq(devices.id, parseInt(req.params.id)));
+      res.json({ message: "Device deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting device:", error);
+      res.status(500).send("Error deleting device");
+    }
+  });
   // Get registered devices for the authenticated user
   app.get("/api/devices", async (req, res) => {
     if (!req.isAuthenticated() || !req.user) {

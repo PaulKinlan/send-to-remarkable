@@ -137,6 +137,17 @@ export function useUser() {
     },
   });
 
+  const deleteDeviceMutation = useMutation<RequestResult, Error, number>({
+    mutationFn: (deviceId) => handleRequest(`/api/device/${deviceId}`, 'DELETE'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/devices'] });
+      toast({
+        title: "Success",
+        description: "Device deleted successfully"
+      });
+    },
+  });
+
   return {
     user,
     isLoading,
@@ -144,6 +155,7 @@ export function useUser() {
     login: loginMutation.mutateAsync,
     logout: logoutMutation.mutateAsync,
     register: registerMutation.mutateAsync,
-    registerDevice: registerDeviceMutation.mutateAsync
+    registerDevice: registerDeviceMutation.mutateAsync,
+    deleteDevice: deleteDeviceMutation.mutateAsync
   };
 }
