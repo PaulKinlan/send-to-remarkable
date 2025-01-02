@@ -1,5 +1,5 @@
 
-# Remarkable Email Gateway
+# SendVia me (Email your Remarkable)
 
 A web application that allows you to send documents to your reMarkable tablet via email. Simply register your device, get a unique email address, and send documents as email attachments.
 

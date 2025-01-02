@@ -71,7 +71,7 @@ export async function sendVerificationEmail(
     subject: "Verify your email address",
     html: `
       <div>
-        <h1>Welcome to remarkable-email!</h1>
+        <h1>Welcome to SendVia me!</h1>
         <p>Please verify your email address by clicking the link below:</p>
         <p><a href="${verificationLink}">Verify Email Address</a></p>
         <p>This link will expire in 24 hours.</p>
