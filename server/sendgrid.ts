@@ -245,7 +245,7 @@ async function convertHtmlToPdf(html: string): Promise<Buffer> {
   console.log(chromiumPath);
 
   const browser = await puppeteer.launch({
-    headless: false,
+    headless: true,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
     executablePath: chromiumPath.trim(),
   });
