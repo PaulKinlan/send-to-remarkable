@@ -15,14 +15,11 @@ function App() {
     );
   }
 
-  if (!user) {
-    return <AuthPage />;
-  }
-
   return (
     <Switch>
-      <Route path="/" component={DashboardPage} />
-      <Route path="*" component={DashboardPage} />
+      <Route path="/" component={HomePage} />
+      <Route path="/dashboard" component={user ? DashboardPage : AuthPage} />
+      <Route path="*" component={HomePage} />
     </Switch>
   );
 }
