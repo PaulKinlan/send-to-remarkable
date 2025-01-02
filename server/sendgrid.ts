@@ -6,6 +6,8 @@ import { eq, and } from "drizzle-orm";
 import { uploadToRemarkable } from "./remarkable.js";
 import sgMail from "@sendgrid/mail";
 import puppeteer from "puppeteer";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import multer, { Multer } from "multer";
 import crypto from "crypto";
 
@@ -237,8 +239,15 @@ export function setupSendGrid(app: Express) {
 }
 
 async function convertHtmlToPdf(html: string): Promise<Buffer> {
+  // find path to crhomium
+  const { stdout: chromiumPath } = await promisify(exec)("which chromium");
+
+  console.log(chromiumPath);
+
   const browser = await puppeteer.launch({
+    headless: false,
     args: ["--no-sandbox", "--disable-setuid-sandbox"],
+    executablePath: chromiumPath.trim(),
   });
 
   try {

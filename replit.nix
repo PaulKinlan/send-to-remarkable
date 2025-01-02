@@ -1,6 +1,6 @@
 {pkgs}: {
   deps = [
-    pkgs.postgresql,
-    pkgs.chromium
+    pkgs.postgresql
+    pkgs.chromium    
   ];
 }

@@ -31,43 +31,6 @@ export default function DashboardPage() {
           <DeviceRegistration />
           <DevicesList />
           <EmailSettings />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>How it works</CardTitle>
-              <CardDescription>
-                Send documents to your reMarkable device via email
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="font-medium">1. Register your device</h3>
-                <p className="text-muted-foreground">
-                  Get a one-time code from{" "}
-                  <a
-                    className="text-blue-500 hover:underline"
-                    target="_blank"
-                    href="https://my.remarkable.com/device/mobile/connect"
-                  >
-                    https://my.remarkable.com/device/mobile/connect
-                  </a>
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">2. Verify your email</h3>
-                <p className="text-muted-foreground">
-                  Verify your email address to start sending documents
-                </p>
-              </div>
-              <div className="space-y-2">
-                <h3 className="font-medium">3. Send documents</h3>
-                <p className="text-muted-foreground">
-                  Forward emails with attachments or send PDFs directly to your
-                  personal delivery address
-                </p>
-              </div>
-            </CardContent>
-          </Card>
         </div>
       </div>
     </div>
