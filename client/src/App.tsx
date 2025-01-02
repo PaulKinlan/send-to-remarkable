@@ -2,6 +2,7 @@ import { Switch, Route } from "wouter";
 import { Loader2 } from "lucide-react";
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
+import HomePage from "./pages/HomePage";
 import { useUser } from "./hooks/use-user";
 
 function App() {
