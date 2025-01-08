@@ -82,7 +82,7 @@ export default function DeviceRegistration() {
                   <FormControl>
                     <Input
                       {...field}
-                      placeholder="Enter code from my.remarkable.com"
+                      placeholder="Enter code from https://my.remarkable.com/device/mobile/connect"
                     />
                   </FormControl>
                   <FormMessage />
@@ -92,6 +92,17 @@ export default function DeviceRegistration() {
 
             <p className="text-muted-foreground">
               Get a one-time code from{" "}
+              <a
+                className="text-blue-500 hover:underline"
+                target="_blank"
+                href="https://my.remarkable.com/device/mobile/connect"
+              >
+                https://my.remarkable.com/device/mobile/connect
+              </a>
+            </p>
+
+            <p className="text-war">
+             Warning: {" "}
               <a
                 className="text-blue-500 hover:underline"
                 target="_blank"
