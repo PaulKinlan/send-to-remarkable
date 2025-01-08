@@ -36,7 +36,12 @@ export function setupRemarkable(app: Express) {
 
     try {
       const userDevices = await db
-        .select()
+        .select({
+          id: devices.id,
+          emailId: devices.emailId,
+          registered: devices.registered,
+          createdAt: devices.createdAt,
+        })
         .from(devices)
         .where(eq(devices.userId, req.user.id));
 
