@@ -28,6 +28,7 @@ export function setupRemarkable(app: Express) {
       res.status(500).send("Error deleting device");
     }
   });
+
   // Get registered devices for the authenticated user
   app.get("/api/devices", async (req, res) => {
     if (!req.isAuthenticated() || !req.user) {
@@ -49,6 +50,53 @@ export function setupRemarkable(app: Express) {
     } catch (error) {
       console.error("Error fetching devices:", error);
       res.status(500).send("Error fetching devices");
+    }
+  });
+
+  // Re-register an existing device with a new one-time code
+  app.post("/api/device/reregister", async (req, res) => {
+    if (!req.isAuthenticated() || !req.user) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    try {
+      const { oneTimeCode, deviceId } = req.body;
+      console.log(
+        `Re-registering device ${deviceId} for user ${req.user.id} with code: ${oneTimeCode}`,
+      );
+
+      // Get the existing device
+      const [existingDevice] = await db
+        .select()
+        .from(devices)
+        .where(eq(devices.id, deviceId))
+        .limit(1);
+
+      if (!existingDevice) {
+        return res.status(404).send("Device not found");
+      }
+
+      // Register new device with Remarkable
+      const deviceToken = await register(oneTimeCode);
+      console.log(`Device re-registered successfully with token: ${deviceToken}`);
+
+      // Update device token
+      await db
+        .update(devices)
+        .set({
+          deviceToken,
+          oneTimeCode,
+          registered: true,
+        })
+        .where(eq(devices.id, deviceId));
+
+      res.json({
+        message: "Device re-registered successfully",
+        emailId: existingDevice.emailId,
+      });
+    } catch (error) {
+      console.error("Error re-registering device:", error);
+      res.status(500).send("Error re-registering device");
     }
   });
 
@@ -105,8 +153,6 @@ export async function uploadToRemarkable(
 
     // Create a new API instance with the device token
     const api = await remarkable(deviceToken);
-
-    // Convert the file to PDF if it's not already
 
     let result: UploadEntry;
 

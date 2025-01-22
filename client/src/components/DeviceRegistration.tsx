@@ -26,31 +26,57 @@ const formSchema = z.object({
   oneTimeCode: z
     .string()
     .length(8, "One-time code must be exactly 8 characters"),
+  deviceId: z.number().optional(),
 });
 
-export default function DeviceRegistration() {
-  const { registerDevice } = useUser();
+type FormData = z.infer<typeof formSchema>;
+
+interface Props {
+  deviceId?: number;
+  emailId?: string;
+  onSuccess?: () => void;
+}
+
+export default function DeviceRegistration({ deviceId, emailId, onSuccess }: Props) {
+  const { registerDevice, reRegisterDevice } = useUser();
   const [isLoading, setIsLoading] = useState(false);
-  const [emailId, setEmailId] = useState<string | null>(null);
+  const [registeredEmailId, setRegisteredEmailId] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       oneTimeCode: "",
+      deviceId: deviceId,
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: FormData) {
     setIsLoading(true);
     try {
-      const response = await registerDevice(values);
+      let response;
+      if (deviceId) {
+        // Re-register existing device
+        response = await reRegisterDevice({
+          oneTimeCode: values.oneTimeCode,
+          deviceId,
+        });
+        toast({
+          title: "Device re-registered successfully",
+          description: `Your existing delivery email address ${response.emailId} has been reconnected.`,
+        });
+      } else {
+        // Register new device
+        response = await registerDevice(values);
+        toast({
+          title: "Device registered successfully",
+          description: `Your delivery email address is: ${response.emailId}`,
+        });
+      }
+
       form.reset();
-      setEmailId(response.emailId);
-      toast({
-        title: "Device registered successfully",
-        description: `Your delivery email address is: ${response.emailId}`,
-      });
+      setRegisteredEmailId(response.emailId);
+      onSuccess?.();
     } catch (error) {
       toast({
         variant: "destructive",
@@ -65,9 +91,11 @@ export default function DeviceRegistration() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Device Registration</CardTitle>
+        <CardTitle>{deviceId ? "Reconnect Device" : "Device Registration"}</CardTitle>
         <CardDescription>
-          Register your reMarkable device to enable email delivery
+          {deviceId 
+            ? "Re-register your reMarkable device to restore email delivery"
+            : "Register your reMarkable device to enable email delivery"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -101,27 +129,22 @@ export default function DeviceRegistration() {
               </a>
             </p>
 
-            <p className="text-war">
-             Warning: {" "}
-              <a
-                className="text-blue-500 hover:underline"
-                target="_blank"
-                href="https://my.remarkable.com/device/mobile/connect"
-              >
-                https://my.remarkable.com/device/mobile/connect
-              </a>
-            </p>
+            {emailId && (
+              <p className="text-sm text-muted-foreground">
+                This will reconnect your device to the email address: <strong>{emailId}</strong>
+              </p>
+            )}
 
             <Button type="submit" disabled={isLoading}>
-              Register Device
+              {deviceId ? "Reconnect Device" : "Register Device"}
             </Button>
 
-            {emailId && (
+            {registeredEmailId && (
               <div className="mt-4 p-4 bg-muted rounded-lg">
                 <p className="text-sm font-medium">
                   Your delivery email address:
                 </p>
-                <p className="text-sm font-mono mt-1">{emailId}</p>
+                <p className="text-sm font-mono mt-1">{registeredEmailId}</p>
               </div>
             )}
           </form>
