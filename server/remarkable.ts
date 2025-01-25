@@ -47,9 +47,9 @@ export function setupRemarkable(app: Express) {
         })
         .where(eq(devices.id, deviceId));
 
-      res.json({ 
+      res.json({
         message: "Device reconnected successfully",
-        emailId: device.emailId 
+        emailId: device.emailId,
       });
     } catch (error) {
       console.error("Error reconnecting device:", error);
@@ -152,9 +152,9 @@ export async function uploadToRemarkable(
 
     if (contentType === "application/pdf") {
       // Upload the document using the API instance
-      result = await api.uploadPdf(filename, content);
+      result = await api.putPdf(filename, new Uint8Array(content));
     } else if (file.contentType === "application/epub+zip") {
-      result = await api.uploadEpub(filename, content);
+      result = await api.putEpub(filename, new Uint8Array(content));
     } else {
       console.log(`File ${file.filename} is not PDF, conversion may be needed`);
       return false;
